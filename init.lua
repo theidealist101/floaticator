@@ -2,7 +2,7 @@ floaticator = {}
 
 local env = minetest.request_insecure_environment()
 if not env then
-    error("floaticator is not trusted")
+    error("Floaticator needs to be trusted in order to load nodeboxes correctly")
 end
 
 floaticator.save_nodeboxes = function()

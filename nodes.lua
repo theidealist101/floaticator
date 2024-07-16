@@ -21,7 +21,7 @@ local function build_floater(pos, origin, out)
         if not included then
 
             --check if connected
-            if node2.name ~= "air" then
+            if node2.name ~= "air" and minetest.registered_nodes[node2.name].liquidtype == "none" then
 
                 --check if blocked
                 if node2.name == "ignore" then return end
