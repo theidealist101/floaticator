@@ -26,7 +26,7 @@ function floaticator.nodebox_to_mesh(nodebox)
     for i, box in ipairs(newboxes) do
         table.insert(out, "o box"..i)
         --vertices, order ---, --+, -+-, -++, +--, +-+, ++-, +++
-        for _, x in ipairs({box[1], box[4]}) do
+        for _, x in ipairs({-box[4], -box[1]}) do
             for _, y in ipairs({box[2], box[5]}) do
                 for _, z in ipairs({box[3], box[6]}) do
                     table.insert(out, table.concat({"v", x, y, z}, " "))
