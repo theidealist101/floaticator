@@ -144,3 +144,21 @@ minetest.register_craftitem("floaticator:nodeifier", {
     on_place = nodeify,
     on_secondary_use = nodeify
 })
+
+--[[
+--Make players on top of floater move with it
+minetest.register_globalstep(function (dtime)
+    for i, obj in ipairs(minetest.get_connected_players()) do
+        local pos = obj:get_pos()
+        local under = minetest.raycast(pos, pos+vector.new(0, -2, 0))
+        under:next() --discard the first, this is the player
+        under = under:next()
+        if under and under.type == "object" and under.ref:get_luaentity() and under.ref:get_luaentity().name == "floaticator:node" then
+            local floater = under.ref:get_attach()
+            if floater then
+                obj:set_attach(floater, "", pos-floater:get_pos(), vector.new(math.deg(obj:get_look_vertical()), math.deg(obj:get_look_horizontal()), 0), false)
+            end
+        end
+    end
+end)
+]]
