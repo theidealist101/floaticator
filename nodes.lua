@@ -148,6 +148,18 @@ minetest.register_craftitem("floaticator:nodeifier", {
     on_secondary_use = nodeify
 })
 
+--Debug nodebox thing
+minetest.register_node("floaticator:testcube", {
+    description = "Test Cube",
+    drawtype = "nodebox",
+    tiles = {"testcube0.png", "testcube1.png", "testcube2.png", "testcube3.png", "testcube4.png", "testcube5.png"},
+    node_box = {
+        type = "fixed",
+        fixed = {{-0.5, -0.5, -0.5, 0.5, 0, 0.5}, {-0.5, 0, -0.5, 0, 0.5, 0}}
+    },
+    groups = {cracky=3, not_in_creative_inventory=1}
+})
+
 --[[
 --Make players on top of floater move with it
 minetest.register_globalstep(function (dtime)
