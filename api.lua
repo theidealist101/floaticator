@@ -201,29 +201,6 @@ function floaticator.get_props(node, defs)
     return out
 end
 
---Call a function from a floater with alterations to global namespaces
-local function local_env(floater, func)
-    local old_minetest = minetest
-    minetest = table.copy(minetest)
-
-    minetest.get_node = function (pos)
-        local obj = floater:get_node_at(pos)
-        if not obj then return {name="ignore", param=0, param2=0} end
-        return obj:get_luaentity().node
-    end
-
-    minetest.swap_node = function (pos, node)
-        local obj = floater:get_node_at(pos)
-        if not obj then return end
-        obj:get_luaentity():set_node(node)
-        --floater:update_connects() --drawtype is nil causing floatater to disappear, unknown reason
-    end
-
-    local out = func()
-    minetest = old_minetest
-    return out
-end
-
 --Entity representing a node, with all the necessary collision and stuff
 minetest.register_entity("floaticator:node", {
     initial_properties = floaticator.get_props(),
@@ -283,8 +260,6 @@ minetest.register_entity("floaticator:floater", {
     get_staticdata = function (self)
         return minetest.serialize({self.node_data, self.node_timers, self.metadata})
     end,
-
-    --Remove floater and place all nodes back into the world
     dismantle = function (self)
         local selfpos = self.object:get_pos()
         for i, obj in ipairs(self.object:get_children()) do
@@ -304,8 +279,6 @@ minetest.register_entity("floaticator:floater", {
         end
         self.object:remove()
     end,
-
-    --Update connections of all nodes
     update_connects = function (self)
         for _, obj in ipairs(self.object:get_children()) do
             local entity = obj:get_luaentity()
@@ -317,40 +290,5 @@ minetest.register_entity("floaticator:floater", {
                 end
             end
         end
-    end,
-
-    --Get child node object at a given position
-    get_node_at = function (self, pos)
-        for _, obj in ipairs(self.object:get_children()) do
-            local p = ({obj:get_attach()})[3]*0.1
-            if p-pos == vector.zero() then return obj end
-        end
-    end,
-
-    --Update node timers
-    update_timers = function (self, dtime)
-        local removals = {}
-        for i, val in ipairs(self.node_timers) do
-            val[3] = val[3]+dtime
-            if val[3] >= val[2] then
-                local node = self:get_node_at(val[1])
-                if node and local_env(self, function()
-                    local entity = node:get_luaentity()
-                    return entity.node_defs.on_timer(val[1])
-                end) then
-                    val[3] = 0
-                else
-                    table.insert(removals, i)
-                end
-            end
-        end
-        for i = #removals, 1, -1 do
-            table.remove(self.node_timers, removals[i])
-        end
-    end,
-
-    --Do lots of update stuff on step
-    on_step = function (self, dtime)
-        self:update_timers(dtime)
     end
 })
