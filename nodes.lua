@@ -21,10 +21,10 @@ local function build_floater(pos, origin, out)
         if not included then
 
             --check if connected
-            if node2.name ~= "air" and minetest.registered_nodes[node2.name].liquidtype == "none" then
+            if floaticator.can_connect(node, node2, dir) then
 
                 --check if blocked
-                if node2.name == "ignore" then return end
+                if not floaticator.can_move(node2) then return end
 
                 --otherwise try to build more in this direction
                 local floater = build_floater(pos+dir, origin, out)
@@ -43,7 +43,7 @@ local function floater_on_step(self, dtime, moveresult)
     local dir = vector.normalize(self.object:get_velocity())*0.5
     for i, obj in ipairs(self.object:get_children()) do
         local defs = minetest.registered_nodes[minetest.get_node(vector.round(obj:get_pos()+({obj:get_attach()})[3]*0.1+dir)).name]
-        if not defs or defs.walkable then
+        if not defs or defs.walkable or not defs.buildable_to then
             self:dismantle()
             return
         end

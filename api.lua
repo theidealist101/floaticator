@@ -88,6 +88,18 @@ floaticator.nodebox_meshes = {}
 
 minetest.register_on_mods_loaded(floaticator.save_nodeboxes)
 
+--Convert direction vector to side of nodebox
+local function dir_to_face(dir)
+    return table.indexof({
+        vector.new(-1, 0, 0),
+        vector.new(0, -1, 0),
+        vector.new(0, 0, -1),
+        vector.new(1, 0, 0),
+        vector.new(0, 1, 0),
+        vector.new(0, 0, 1)
+    }, dir)
+end
+
 --Get object properties based on node defs
 local function bounding_box(boxes)
     if not boxes then return end
@@ -115,6 +127,14 @@ local function rotate_box(box, node, defs)
     box = {
         cos*box[1]-sin*box[3], box[2], sin*box[1]+cos*box[3],
         cos*box[4]-sin*box[6], box[5], sin*box[4]+cos*box[6]
+    }
+    box = {
+        math.min(box[1], box[4]),
+        math.min(box[2], box[5]),
+        math.min(box[3], box[6]),
+        math.max(box[1], box[4]),
+        math.max(box[2], box[5]),
+        math.max(box[3], box[6])
     }
     return box
 end
@@ -194,7 +214,7 @@ function floaticator.get_props(node, defs)
         --ladder-like node with one face against the bottom of the node
         elseif defs.drawtype == "signlike" then
             out.mesh = "signlike.obj"
-        
+
         --nodebox node, having been converted to a mesh earlier
         elseif defs.drawtype == "nodebox" and defs.node_box.type ~= "regular" then
             out.mesh = floaticator.nodebox_meshes[node.name]
@@ -210,6 +230,37 @@ function floaticator.get_props(node, defs)
     end
 
     return out
+end
+
+--Get whether two nodes connect to each other
+function floaticator.can_connect(node1, node2, dir)
+    --check a few obvious cases: air, fluids, other game-specific stuff maybe
+    if node2.name == "air" or minetest.registered_nodes[node2.name].liquidtype ~= "none" then
+        return false
+    end
+
+    --make sure the nodes allow connection that way
+    if node1.name == "floaticator:floaticator_on" and minetest.wallmounted_to_dir(node1.param2) ~= dir
+    or node2.name == "floaticator:floaticator_on" and minetest.wallmounted_to_dir(node2.param2) ~= dir then
+        return false
+    end
+
+    --make sure the nodes are touching each other
+    local mult = dir.x+dir.y+dir.z
+    local defs1 = minetest.registered_nodes[node1.name]
+    local defs2 = minetest.registered_nodes[node2.name]
+    local side1 = floaticator.get_box(defs1.selection_box, defs1, node1.param2)[dir_to_face(dir)] or mult*0.5
+    local side2 = floaticator.get_box(defs2.selection_box, defs2, node2.param2)[dir_to_face(-dir)] or -mult*0.5
+    if side1*mult < 0.5 or side2*-mult < 0.5 then
+        return false
+    end
+
+    return true
+end
+
+--Get whether a node is movable
+function floaticator.can_move(node)
+    return node.name ~= "ignore"
 end
 
 --Entity representing a node, with all the necessary collision and stuff
