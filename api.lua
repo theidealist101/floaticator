@@ -16,15 +16,15 @@ function floaticator.nodebox_to_mesh(nodebox)
     local out = {
         "# Auto-generated from nodebox by Floaticator",
         "usemtl none",
-        "vn 1 0 0",
-        "vn -1 0 0",
         "vn 0 1 0",
         "vn 0 -1 0",
+        "vn 1 0 0",
+        "vn -1 0 0",
         "vn 0 0 1",
         "vn 0 0 -1",
     }
+    local faces = {{}, {}, {}, {}, {}, {}}
     for i, box in ipairs(newboxes) do
-        table.insert(out, "o box"..i)
         --vertices, order ---, --+, -+-, -++, +--, +-+, ++-, +++
         for _, x in ipairs({-box[4], -box[1]}) do
             for _, y in ipairs({box[2], box[5]}) do
@@ -33,43 +33,54 @@ function floaticator.nodebox_to_mesh(nodebox)
                 end
             end
         end
-        --textures, same order as coords in faces (placeholder)
+        --textures, same order as coords in faces
         for j = 1, 6 do
             local uv --u1, u2, v1, v2
             if j <= 2 then
-                uv = {box[3], box[6], box[2], box[5]} --no x: uv=zy
-            elseif j <= 4 then
                 uv = {box[1], box[4], box[3], box[6]} --no y: uv=xz
+            elseif j <= 4 then
+                uv = {box[3], box[6], box[2], box[5]} --no x: uv=zy
             else
                 uv = {box[1], box[4], box[2], box[5]} --no z: uv=xy
             end
-            if j%2 == 0 then
-                uv = {-uv[1], -uv[2], -uv[3], -uv[4]}
+            if j == 2 or j == 4 or j == 5 then --I have no fucking clue why this works but it does
+                uv = {-uv[2], -uv[1], uv[3], uv[4]}
+                if j == 2 then
+                    uv = {-uv[1], -uv[2], -uv[3], -uv[4]}
+                end
             end
             uv = {uv[1]+0.5, uv[2]+0.5, uv[3]+0.5, uv[4]+0.5}
             table.insert_all(out, {
-                table.concat({"vt", uv[1], uv[3]}, " "),
-                table.concat({"vt", uv[1], uv[4]}, " "),
+                table.concat({"vt", uv[2], uv[3]}, " "),
                 table.concat({"vt", uv[2], uv[4]}, " "),
-                table.concat({"vt", uv[2], uv[3]}, " ")
+                table.concat({"vt", uv[1], uv[4]}, " "),
+                table.concat({"vt", uv[1], uv[3]}, " ")
             })
         end
         --faces, should be the same for any box
-        table.insert_all(out, {
-            "g m1",
-            "f -6/-16/3 -5/-15/3 -1/-14/3 -2/-13/3",
-            "g m2",
-            "f -4/-12/4 -3/-11/4 -7/-10/4 -8/-9/4",
-            "g m3",
-            "f -4/-24/1 -2/-23/1 -1/-22/1 -3/-21/1",
-            "g m4",
-            "f -7/-20/2 -5/-19/2 -6/-18/2 -8/-17/2",
-            "g m5",
-            "f -8/-8/5 -6/-7/5 -2/-6/5 -4/-5/5",
-            "g m6",
-            "f -3/-4/6 -1/-3/6 -5/-2/6 -7/-1/6",
-        })
+        table.insert(faces[1], {3, 4, 8, 7})
+        table.insert(faces[2], {5, 6, 2, 1})
+        table.insert(faces[3], {2, 4, 3, 1})
+        table.insert(faces[4], {5, 7, 8, 6})
+        table.insert(faces[5], {6, 8, 4, 2})
+        table.insert(faces[6], {1, 3, 7, 5})
     end
+    --add back in the faces
+    for i, side in ipairs(faces) do
+        table.insert(out, "g m"..i)
+        for j, face in ipairs(side) do
+            local face_string = {"f "}
+            for k, v in ipairs(face) do
+                table.insert_all(face_string, {
+                    (j-1)*8+v, "/",
+                    (j-1)*24+(i-1)*4+k, "/",
+                    i, " "
+                })
+            end
+            table.insert(out, table.concat(face_string))
+        end
+    end
+
     return table.concat(out, "\n")
 end
 

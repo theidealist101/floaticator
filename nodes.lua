@@ -37,7 +37,9 @@ local function build_floater(pos, origin, out)
 end
 
 --Modified floater step function to allow it to dismantle on collision with a node
-local function floater_on_step(self)
+local old_on_step = minetest.registered_entities["floaticator:floater"].on_step or function() end
+
+local function floater_on_step(self, dtime, moveresult)
     local dir = vector.normalize(self.object:get_velocity())*0.5
     for i, obj in ipairs(self.object:get_children()) do
         local defs = minetest.registered_nodes[minetest.get_node(vector.round(obj:get_pos()+({obj:get_attach()})[3]*0.1+dir)).name]
@@ -46,6 +48,7 @@ local function floater_on_step(self)
             return
         end
     end
+    old_on_step(self, dtime, moveresult)
 end
 
 --Literally just the floaticator
