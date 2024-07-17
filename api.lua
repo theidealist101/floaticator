@@ -229,6 +229,7 @@ minetest.register_entity("floaticator:node", {
     on_activate = function (self, staticdata)
         if not staticdata or staticdata == "" then self.object:remove() return end
         self:set_node(minetest.deserialize(staticdata))
+        self.object:set_armor_groups({immortal=1})
     end,
     get_staticdata = function (self)
         return minetest.serialize(self.node)
@@ -266,7 +267,11 @@ minetest.register_entity("floaticator:floater", {
                 obj:set_attach(self.object, "", vector.multiply(pair[1], 10), -vector.apply(floaticator.get_rotation(pair[2]), math.deg), false)
             end
             self:update_connects()
+        else
+            self.object:remove()
+            return
         end
+        self.object:set_armor_groups({immortal=1})
     end,
     get_staticdata = function (self)
         return minetest.serialize({self.node_data, self.node_timers, self.metadata})
@@ -289,6 +294,11 @@ minetest.register_entity("floaticator:floater", {
             meta:from_table({fields=val[2], inventory=meta:to_table().inventory})
         end
         self.object:remove()
+    end,
+    on_punch = function (self, _, _, _, _, damage)
+        if damage >= self.object:get_hp() then
+            self:dismantle()
+        end
     end,
     update_connects = function (self)
         for _, obj in ipairs(self.object:get_children()) do
