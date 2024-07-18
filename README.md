@@ -13,7 +13,7 @@ Known Bugs
 * Mesecons components such as the floaticator itself don't update after being transported.
 * The VAE does not push objects in front of it or on top of it.
 * Nodes being transported may be cloned on reloading the world, as they detach from the VAE which then spawns new ones to replace them.
-* Crashes for whatever reason may cause the floater to become unresponsive.
+* Crashes for whatever reason may cause the VAE to become unresponsive.
 
 License
 -------
