@@ -60,12 +60,12 @@ end
 minetest.register_node("floaticator:floaticator_off", {
     description = "Floaticator",
     tiles = {
-        "floatater_back.png",
-        "floatater_front.png",
-        "floatater_side.png^[transform2",
-        "floatater_side.png^[transform2",
-        "floatater_side.png^[transform2",
-        "floatater_side.png^[transform2"
+        "floaticator_back.png",
+        "floaticator_front.png",
+        "floaticator_side.png^[transform2",
+        "floaticator_side.png^[transform2",
+        "floaticator_side.png^[transform2",
+        "floaticator_side.png^[transform2"
     },
     paramtype2 = "wallmounted",
     groups = {cracky=3, mesecon_effector_off=1},
@@ -83,12 +83,12 @@ minetest.register_node("floaticator:floaticator_off", {
 minetest.register_node("floaticator:floaticator_on", {
     description = "Floaticator",
     tiles = {
-        "floatater_back_triggered.png",
-        "floatater_front.png",
-        "floatater_side.png^[transform2",
-        "floatater_side.png^[transform2",
-        "floatater_side.png^[transform2",
-        "floatater_side.png^[transform2"
+        "floaticator_back_powered.png",
+        "floaticator_front.png",
+        "floaticator_side.png^[transform2",
+        "floaticator_side.png^[transform2",
+        "floaticator_side.png^[transform2",
+        "floaticator_side.png^[transform2"
     },
     paramtype2 = "wallmounted",
     groups = {cracky=3, mesecon_effector_on=1, not_in_creative_inventory=1},
