@@ -1,0 +1,5 @@
+#Maximum distance of nodes from floaticator - if the structure extends further than this then it cannot be pushed
+floaticator_size_limit (Size limit) int 16
+
+#Speed of floaticator structure when powered
+floaticator_speed (Speed) float 1

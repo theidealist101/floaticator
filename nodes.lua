@@ -1,3 +1,7 @@
+--Some settings
+local max_dist = minetest.settings:get("floaticator_size_limit") or 16
+local speed = minetest.settings:get("floaticator_speed") or 1
+
 --Recursively build floater from position, returning data (possibly empty) or nil if blocked
 local function build_floater(pos, origin, out)
     local node = minetest.get_node(pos)
@@ -6,7 +10,7 @@ local function build_floater(pos, origin, out)
     table.insert(out, {pos-origin, node})
 
     --check it's not too far from start
-    if math.abs(pos.x-origin.x) > 16 or math.abs(pos.y-origin.y) > 16 or math.abs(pos.z-origin.z) > 16 then return end
+    if math.abs(pos.x-origin.x) > max_dist or math.abs(pos.y-origin.y) > max_dist or math.abs(pos.z-origin.z) > max_dist then return end
 
     --try each neighbor in turn
     for i = 0, 5 do
@@ -117,7 +121,7 @@ minetest.register_node("floaticator:floaticator_on", {
             end
             local obj = minetest.add_entity(pos, "floaticator:floater", minetest.serialize({floater, node_timers, metadata}))
             obj:get_luaentity().on_step = floater_on_step
-            obj:set_velocity(dir)
+            obj:set_velocity(dir*speed)
             return false
         end
         return true
