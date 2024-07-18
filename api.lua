@@ -1,17 +1,6 @@
-function floaticator.nodebox_to_mesh(nodebox)
-    --assemble list of boxes to use
-    local boxes = {}
-    if nodebox.type == "fixed" then
-        table.insert(boxes, nodebox.fixed)
-    end
-    local newboxes = {}
-    for i, box in ipairs(boxes) do
-        if type(box[1]) == "table" then
-            table.insert_all(newboxes, box)
-        else
-            table.insert(newboxes, box)
-        end
-    end
+--Convert a nodebox into a mesh file and output that as a string
+function floaticator.nodebox_to_mesh(boxes)
+    if type(boxes[1]) ~= "table" then boxes = {boxes} end
     --convert all to mesh parts
     local out = {
         "# Auto-generated from nodebox by Floaticator",
@@ -24,7 +13,7 @@ function floaticator.nodebox_to_mesh(nodebox)
         "vn 0 0 -1",
     }
     local faces = {{}, {}, {}, {}, {}, {}}
-    for i, box in ipairs(newboxes) do
+    for i, box in ipairs(boxes) do
         --vertices, order ---, --+, -+-, -++, +--, +-+, ++-, +++
         for _, x in ipairs({-box[4], -box[1]}) do
             for _, y in ipairs({box[2], box[5]}) do
@@ -84,9 +73,52 @@ function floaticator.nodebox_to_mesh(nodebox)
     return table.concat(out, "\n")
 end
 
-floaticator.nodebox_meshes = {}
+local nodebox_meshes = {}
 
-minetest.register_on_mods_loaded(floaticator.save_nodeboxes)
+local function pack_connections(connections)
+    return (connections[1] and 32 or 0)
+    +(connections[2] and 16 or 0)
+    +(connections[3] and 8 or 0)
+    +(connections[4] and 4 or 0)
+    +(connections[5] and 2 or 0)
+    +(connections[6] and 1 or 0)
+end
+
+local function unpack_connections(cp)
+    return {cp%64 >= 32, cp%32 >= 16, cp%16 >= 8, cp%8 >= 4, cp%4 >= 2, cp%2 >= 1}
+end
+
+local function save_nodebox(node, defs, cp)
+    local name = table.concat(string.split(node, ":"), "_")..(cp or "")..".obj"
+    local file = floaticator.get_nodebox_file(name)
+    if file then
+        local connections = cp and unpack_connections(cp)
+        local boxes = floaticator.get_boxes(defs.node_box, defs, node.param2, connections)
+        local mesh = floaticator.nodebox_to_mesh(boxes)
+        if mesh and file:write(mesh) then
+            if cp then nodebox_meshes[node][cp] = name
+            else nodebox_meshes[node] = name end
+        end
+        file:close()
+    end
+end
+
+local function save_nodeboxes()
+    for node, defs in pairs(minetest.registered_nodes) do
+        if defs.drawtype == "nodebox" and defs.node_box.type ~= "regular" then
+            if defs.node_box.type == "connected" then
+                nodebox_meshes[node] = {}
+                for connect_packed = 0, 63 do
+                    save_nodebox(node, defs, connect_packed)
+                end
+            else
+                save_nodebox(node, defs)
+            end
+        end
+    end
+end
+
+minetest.register_on_mods_loaded(save_nodeboxes)
 
 --Convert direction vector to side of nodebox
 local function dir_to_face(dir)
@@ -139,18 +171,37 @@ local function rotate_box(box, node, defs)
     return box
 end
 
-function floaticator.get_box(nodebox, defs, param2)
+function floaticator.get_boxes(nodebox, defs, param2, connections)
     if not nodebox or nodebox.type == "regular" then
         return {-0.5, -0.5, -0.5, 0.5, 0.5, 0.5}
     elseif nodebox.type == "fixed" then
-        return rotate_box(bounding_box(nodebox.fixed), {param2=param2}, defs)
+        return nodebox.fixed
     elseif nodebox.type == "wallmounted" then
-        if defs.paramtype2 ~= "wallmounted" or param2 == 0 then return bounding_box(nodebox.wall_top) or {-0.5, 0.4375, -0.5, 0.5, 0.5, 0.5}
-        elseif param2 == 1 then return bounding_box(nodebox.wall_bottom) or {-0.5, -0.5, -0.5, 0.5, -0.4375, 0.5}
-        else return rotate_box(bounding_box(nodebox.wall_side) or {-0.5, -0.5, 0.4375, 0.5, 0.5, 0.5}, {param2=param2}, defs) end --placeholder - can't yet deal with rotated nodeboxes
+        if defs.paramtype2 ~= "wallmounted" or param2 == 0 then return nodebox.wall_top or {-0.5, 0.4375, -0.5, 0.5, 0.5, 0.5}
+        elseif param2 == 1 then return nodebox.wall_bottom or {-0.5, -0.5, -0.5, 0.5, -0.4375, 0.5}
+        else return nodebox.wall_side or {-0.5, -0.5, 0.4375, 0.5, 0.5, 0.5} end
+    elseif nodebox.type == "connected" then
+        connections = connections or {}
+        local out = nodebox.fixed
+        if type(out[1]) ~= "table" then out = {out} end
+        for i, side in ipairs({"bottom", "top", "right", "left", "back", "front"}) do
+            local c, dc = nodebox["connect_"..side], nodebox["disconnect_"..side]
+            if connections[i] then
+                if c then
+                    if type(c[1]) == "table" then table.insert_all(out, c) else table.insert(out, c) end
+                end
+            elseif dc then
+                if type(c[1]) == "table" then table.insert_all(out, dc) else table.insert(out, dc) end
+            end
+        end
+        return out
     else
         return {-0.5, -0.5, -0.5, 0.5, 0.5, 0.5}
     end
+end
+
+function floaticator.get_box(nodebox, defs, param2, connections)
+    return rotate_box(bounding_box(floaticator.get_boxes(nodebox, defs, param2, connections)), {param2=param2}, defs)
 end
 
 function floaticator.get_rotation(node, defs)
@@ -168,7 +219,7 @@ function floaticator.get_rotation(node, defs)
     end
 end
 
-function floaticator.get_props(node, defs)
+function floaticator.get_props(node, defs, connections)
     local out = {
         visual = "sprite",
         textures = {"blank.png"},
@@ -187,8 +238,9 @@ function floaticator.get_props(node, defs)
             end
         end
         out.physical = defs.walkable
-        out.collisionbox = floaticator.get_box(defs.collision_box, defs, node.param2)
-        out.selectionbox = floaticator.get_box(defs.selection_box, defs, node.param2)
+        out.collisionbox = floaticator.get_box(defs.collision_box, defs, node.param2, connections)
+        out.selectionbox = floaticator.get_box(defs.selection_box, defs, node.param2, connections)
+        --BUG: selection_box from defs contains an erroneous fixed box with full block size, collision_box doesn't though
         out.is_visible = true
 
         --ordinary cube with all faces visible (disappearing faces will be taken care of by the floater)
@@ -217,7 +269,8 @@ function floaticator.get_props(node, defs)
 
         --nodebox node, having been converted to a mesh earlier
         elseif defs.drawtype == "nodebox" and defs.node_box.type ~= "regular" then
-            out.mesh = floaticator.nodebox_meshes[node.name]
+            out.mesh = nodebox_meshes[node.name]
+            if connections then out.mesh = out.mesh[pack_connections(connections)] end
 
         --basic mesh node
         elseif defs.drawtype == "mesh" then
@@ -233,10 +286,15 @@ function floaticator.get_props(node, defs)
 end
 
 --Get whether two nodes connect to each other
-function floaticator.can_connect(node1, node2, dir)
+function floaticator.can_connect(node1, node2, dir, push_dir)
     --check a few obvious cases: air, fluids, other game-specific stuff maybe
     if node2.name == "air" or minetest.registered_nodes[node2.name].liquidtype ~= "none" then
         return false
+    end
+
+    --check if this is the push direction
+    if dir == push_dir then
+        return true
     end
 
     --make sure the nodes allow connection that way
@@ -249,8 +307,9 @@ function floaticator.can_connect(node1, node2, dir)
     local mult = dir.x+dir.y+dir.z
     local defs1 = minetest.registered_nodes[node1.name]
     local defs2 = minetest.registered_nodes[node2.name]
-    local side1 = floaticator.get_box(defs1.selection_box, defs1, node1.param2)[dir_to_face(dir)] or mult*0.5
-    local side2 = floaticator.get_box(defs2.selection_box, defs2, node2.param2)[dir_to_face(-dir)] or -mult*0.5
+    local connections = {true, true, true, true, true, true} --placeholder
+    local side1 = floaticator.get_box(defs1.selection_box, defs1, node1.param2, connections)[dir_to_face(dir)] or mult*0.5
+    local side2 = floaticator.get_box(defs2.selection_box, defs2, node2.param2, connections)[dir_to_face(-dir)] or -mult*0.5
     if side1*mult < 0.5 or side2*-mult < 0.5 then
         return false
     end
@@ -272,7 +331,12 @@ minetest.register_entity("floaticator:node", {
         node = node or self.node
         if not node or not node.name then self.object:remove() return end
         local node_defs = minetest.registered_nodes[node.name]
-        self.object:set_properties(floaticator.get_props(node, node_defs))
+        if node_defs.drawtype == "nodebox" and node_defs.node_box.type == "connected" then
+            self.connections = self.connections or {false, false, false, false, false, false}
+        else
+            self.connections = nil
+        end
+        self.object:set_properties(floaticator.get_props(node, node_defs, self.connections))
         self.object:set_rotation(floaticator.get_rotation(node, node_defs))
         self.node = node
         self.node_defs = node_defs
@@ -288,13 +352,17 @@ minetest.register_entity("floaticator:node", {
     connect = function (self, face, node)
         local defs = minetest.registered_nodes[node.name] or {}
         local opaque = defs.drawtype == "normal" --placeholder
-        if (((self.node.name == node.name or opaque) and (self.node_defs.drawtype == "glasslike"
-        or self.node_defs.drawtype == "glasslike_framed" or self.node_defs.drawtype == "glasslike_framed_optional"))
-        or (self.node_defs.drawtype == "normal" and opaque))
+        local drawtype = self.node_defs.drawtype
+        if (((self.node.name == node.name or opaque) and (drawtype == "glasslike"
+        or drawtype == "glasslike_framed" or drawtype == "glasslike_framed_optional"))
+        or (drawtype == "normal" and opaque))
         and self.object:get_rotation() == vector.zero() then --temporary fix for rotations
             local props = self.object:get_properties()
             props.textures[face] = "blank.png"
             self.object:set_properties(props)
+        elseif self.connections and self.node.name == node.name then
+            self.connections[face] = true
+            self:set_node()
         end
     end
 })

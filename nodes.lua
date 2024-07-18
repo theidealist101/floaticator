@@ -3,8 +3,9 @@ local max_dist = minetest.settings:get("floaticator_size_limit") or 16
 local speed = minetest.settings:get("floaticator_speed") or 1
 
 --Recursively build floater from position, returning data (possibly empty) or nil if blocked
-local function build_floater(pos, origin, out)
+local function build_floater(pos, push_dir, origin, out)
     local node = minetest.get_node(pos)
+    push_dir = push_dir or vector.zero()
     origin = origin or pos
     out = out or {}
     table.insert(out, {pos-origin, node})
@@ -25,13 +26,13 @@ local function build_floater(pos, origin, out)
         if not included then
 
             --check if connected
-            if floaticator.can_connect(node, node2, dir) then
+            if floaticator.can_connect(node, node2, dir, push_dir) then
 
                 --check if blocked
                 if not floaticator.can_move(node2) then return end
 
                 --otherwise try to build more in this direction
-                local floater = build_floater(pos+dir, origin, out)
+                local floater = build_floater(pos+dir, push_dir, origin, out)
                 if not floater then return end
             end
         end
@@ -103,7 +104,7 @@ minetest.register_node("floaticator:floaticator_on", {
     on_timer = function (pos)
         local node = minetest.get_node(pos)
         local dir = minetest.wallmounted_to_dir(node.param2)
-        local floater = build_floater(pos)
+        local floater = build_floater(pos, dir)
         if floater then
             local node_timers = {}
             local metadata = {}
