@@ -3,6 +3,8 @@ Floaticator
 
 A mod for Minetest, adding a node (based on the Floatater from Minecraft's joke snapshot 24w14potato) which transports structures as a sort of voxel area entity when powered by mesecons. Very much in progress and unfinished, plenty of known bugs, doesn't yet support all drawtypes, paramtypes, nodebox types, etc.; nodes in transport are intentionally frozen and cannot yet be interacted with. Feel free to test it out and find even more bugs for me to fix. A list of known bugs is maintained below.
 
+Please note that the Floater API needs to be added to trusted mods in the settings in order to work. This is because nodeboxes are represented by being converted into meshes, which must be saved in the mod folder. This may also cause slightly longer loading times, especially when using lots of connected nodeboxes which need a separate mesh for every combination.
+
 Known Bugs
 ----------
 
